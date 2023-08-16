@@ -772,6 +772,7 @@ func (e *historyEngineImpl) RebuildMutableState(
 	ctx context.Context,
 	namespaceUUID namespace.ID,
 	execution commonpb.WorkflowExecution,
+	branchToken []byte,
 ) error {
 	return e.workflowRebuilder.rebuild(
 		ctx,
@@ -780,6 +781,7 @@ func (e *historyEngineImpl) RebuildMutableState(
 			execution.GetWorkflowId(),
 			execution.GetRunId(),
 		),
+		branchToken,
 	)
 }
 
