@@ -129,6 +129,7 @@ type (
 		lastActiveness         bool
 		resourceExhaustedCount int // does NOT include consts.ErrResourceExhaustedBusyWorkflow
 		taggedMetricsHandler   metrics.Handler
+		dlq                    DLQ
 	}
 )
 
@@ -144,6 +145,7 @@ func NewExecutable(
 	clusterMetadata cluster.Metadata,
 	logger log.Logger,
 	metricsHandler metrics.Handler,
+	dlq DLQ,
 ) Executable {
 	executable := &executableImpl{
 		Task:              task,
@@ -166,6 +168,7 @@ func NewExecutable(
 		),
 		metricsHandler:       metricsHandler,
 		taggedMetricsHandler: metricsHandler,
+		dlq:                  dlq,
 	}
 	executable.updatePriority()
 	return executable
@@ -338,7 +341,11 @@ func (e *executableImpl) HandleErr(err error) (retErr error) {
 		// likely due to data corruption, emit logs, metrics & drop the task by return nil so that
 		// task will be marked as completed.
 		e.taggedMetricsHandler.Counter(metrics.TaskCorruptionCounter.GetMetricName()).Record(1)
-		e.logger.Error("Drop task due to serialization error", tag.Error(err))
+		e.logger.Error("DLQ task due to serialization error", tag.Error(err))
+		if err := e.dlq.AddTask(context.TODO(), e.Task); err != nil {
+			e.taggedMetricsHandler.Counter(metrics.DLQTaskAddFailureCounter.GetMetricName()).Record(1)
+			e.logger.Error("Failed to add corrupted task to DLQ", tag.Error(err))
+		}
 		return nil
 	}
 

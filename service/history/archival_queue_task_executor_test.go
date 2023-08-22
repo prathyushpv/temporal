@@ -520,6 +520,7 @@ func TestArchivalQueueTaskExecutor(t *testing.T) {
 				mockMetadata,
 				nil,
 				metrics.NoopMetricsHandler,
+				queues.NewNoopDLQ(),
 			)
 			err := executable.Execute()
 			if len(p.ExpectedErrorSubstrings) > 0 {

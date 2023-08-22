@@ -168,6 +168,7 @@ func newQueueBase(
 			shard.GetClusterMetadata(),
 			logger,
 			metricsHandler,
+			NewNoopDLQ(),
 		)
 	}
 

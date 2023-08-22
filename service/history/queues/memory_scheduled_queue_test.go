@@ -184,6 +184,7 @@ func (s *memoryScheduledQueueSuite) newSpeculativeWorkflowTaskTimeoutTestExecuta
 			nil,
 			nil,
 			nil,
+			NewNoopDLQ(),
 		),
 		wttt,
 	)

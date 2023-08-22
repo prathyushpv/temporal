@@ -429,5 +429,6 @@ func (s *executableSuite) newTestExecutable() Executable {
 		s.mockClusterMetadata,
 		log.NewTestLogger(),
 		metrics.NoopMetricsHandler,
+		NewNoopDLQ(),
 	)
 }

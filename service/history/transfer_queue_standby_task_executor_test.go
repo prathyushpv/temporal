@@ -1269,5 +1269,6 @@ func (s *transferQueueStandbyTaskExecutorSuite) newTaskExecutable(
 		s.mockClusterMetadata,
 		nil,
 		metrics.NoopMetricsHandler,
+		queues.NewNoopDLQ(),
 	)
 }
