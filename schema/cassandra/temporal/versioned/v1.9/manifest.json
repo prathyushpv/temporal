@@ -1,0 +1,6 @@
+{
+  "CurrVersion": "1.9",
+  "MinCompatibleVersion": "1.0",
+  "Description": "add queues and messages tables",
+  "SchemaUpdateCqlFiles": ["queues.cql"]
+}
