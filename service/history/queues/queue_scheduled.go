@@ -76,6 +76,7 @@ func NewScheduledQueue(
 	hostRateLimiter quotas.RequestRateLimiter,
 	logger log.Logger,
 	metricsHandler metrics.Handler,
+	dlq DLQ,
 ) *scheduledQueue {
 	paginationFnProvider := func(readerID int64, r Range) collection.PaginationFn[tasks.Task] {
 		return func(paginationToken []byte) ([]tasks.Task, []byte, error) {
@@ -136,6 +137,7 @@ func NewScheduledQueue(
 			readerCompletionFn,
 			logger,
 			metricsHandler,
+			dlq,
 		),
 
 		timerGate:  timer.NewLocalGate(shard.GetTimeSource()),

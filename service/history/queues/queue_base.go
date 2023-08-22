@@ -136,6 +136,7 @@ func newQueueBase(
 	completionFn ReaderCompletionFn,
 	logger log.Logger,
 	metricsHandler metrics.Handler,
+	dlq DLQ,
 ) *queueBase {
 	var readerScopes map[int64][]Scope
 	var exclusiveReaderHighWatermark tasks.Key
@@ -168,7 +169,7 @@ func newQueueBase(
 			shard.GetClusterMetadata(),
 			logger,
 			metricsHandler,
-			NewNoopDLQ(),
+			dlq,
 		)
 	}
 

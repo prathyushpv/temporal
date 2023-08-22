@@ -188,5 +188,6 @@ func (f *archivalQueueFactory) newScheduledQueue(shard shard.Context, executor q
 		f.HostReaderRateLimiter,
 		logger,
 		metricsHandler,
+		f.DLQ,
 	)
 }

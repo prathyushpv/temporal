@@ -61,6 +61,7 @@ func NewImmediateQueue(
 	hostRateLimiter quotas.RequestRateLimiter,
 	logger log.Logger,
 	metricsHandler metrics.Handler,
+	dlq DLQ,
 ) *immediateQueue {
 	paginationFnProvider := func(readerID int64, r Range) collection.PaginationFn[tasks.Task] {
 		return func(paginationToken []byte) ([]tasks.Task, []byte, error) {
@@ -100,6 +101,7 @@ func NewImmediateQueue(
 			NoopReaderCompletionFn,
 			logger,
 			metricsHandler,
+			dlq,
 		),
 
 		notifyCh: make(chan struct{}, 1),

@@ -204,5 +204,6 @@ func (f *timerQueueFactory) CreateQueue(
 		f.HostReaderRateLimiter,
 		logger,
 		metricsHandler,
+		f.DLQ,
 	)
 }

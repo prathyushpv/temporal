@@ -127,20 +127,7 @@ func (s *queueBaseSuite) TestNewProcessBase_NoPreviousState() {
 		s.config,
 	)
 
-	base := newQueueBase(
-		mockShard,
-		tasks.CategoryTransfer,
-		nil,
-		s.mockScheduler,
-		s.mockRescheduler,
-		NewNoopPriorityAssigner(),
-		nil,
-		s.options,
-		s.rateLimiter,
-		NoopReaderCompletionFn,
-		s.logger,
-		s.metricsHandler,
-	)
+	base := newQueueBase(mockShard, tasks.CategoryTransfer, nil, s.mockScheduler, s.mockRescheduler, NewNoopPriorityAssigner(), nil, s.options, s.rateLimiter, NoopReaderCompletionFn, s.logger, s.metricsHandler, NewNoopDLQ())
 
 	s.Len(base.readerGroup.Readers(), 0)
 	s.Equal(int64(1), base.nonReadableScope.Range.InclusiveMin.TaskID)
@@ -212,20 +199,7 @@ func (s *queueBaseSuite) TestNewProcessBase_WithPreviousState_RestoreSucceed() {
 	)
 	mockShard.Resource.ExecutionMgr.EXPECT().RegisterHistoryTaskReader(gomock.Any(), gomock.Any()).Return(nil).Times(2)
 
-	base := newQueueBase(
-		mockShard,
-		tasks.CategoryTransfer,
-		nil,
-		s.mockScheduler,
-		s.mockRescheduler,
-		NewNoopPriorityAssigner(),
-		nil,
-		s.options,
-		s.rateLimiter,
-		NoopReaderCompletionFn,
-		s.logger,
-		s.metricsHandler,
-	)
+	base := newQueueBase(mockShard, tasks.CategoryTransfer, nil, s.mockScheduler, s.mockRescheduler, NewNoopPriorityAssigner(), nil, s.options, s.rateLimiter, NoopReaderCompletionFn, s.logger, s.metricsHandler, NewNoopDLQ())
 
 	readerScopes := make(map[int64][]Scope)
 	for id, reader := range base.readerGroup.Readers() {
@@ -287,20 +261,7 @@ func (s *queueBaseSuite) TestNewProcessBase_WithPreviousState_RestoreFailed() {
 	)
 	mockShard.Resource.ExecutionMgr.EXPECT().RegisterHistoryTaskReader(gomock.Any(), gomock.Any()).Return(errors.New("some random error")).Times(2)
 
-	base := newQueueBase(
-		mockShard,
-		tasks.CategoryTransfer,
-		nil,
-		s.mockScheduler,
-		s.mockRescheduler,
-		NewNoopPriorityAssigner(),
-		nil,
-		s.options,
-		s.rateLimiter,
-		NoopReaderCompletionFn,
-		s.logger,
-		s.metricsHandler,
-	)
+	base := newQueueBase(mockShard, tasks.CategoryTransfer, nil, s.mockScheduler, s.mockRescheduler, NewNoopPriorityAssigner(), nil, s.options, s.rateLimiter, NoopReaderCompletionFn, s.logger, s.metricsHandler, NewNoopDLQ())
 
 	s.Empty(base.readerGroup.Readers())
 	s.Equal(
@@ -343,20 +304,7 @@ func (s *queueBaseSuite) TestStartStop() {
 	}).Times(1)
 	s.mockRescheduler.EXPECT().Len().Return(0).AnyTimes()
 
-	base := newQueueBase(
-		mockShard,
-		tasks.CategoryTransfer,
-		paginationFnProvider,
-		s.mockScheduler,
-		s.mockRescheduler,
-		NewNoopPriorityAssigner(),
-		nil,
-		s.options,
-		s.rateLimiter,
-		NoopReaderCompletionFn,
-		s.logger,
-		s.metricsHandler,
-	)
+	base := newQueueBase(mockShard, tasks.CategoryTransfer, paginationFnProvider, s.mockScheduler, s.mockRescheduler, NewNoopPriorityAssigner(), nil, s.options, s.rateLimiter, NoopReaderCompletionFn, s.logger, s.metricsHandler, NewNoopDLQ())
 
 	s.mockRescheduler.EXPECT().Start().Times(1)
 	base.Start()
@@ -394,20 +342,7 @@ func (s *queueBaseSuite) TestProcessNewRange() {
 	mockShard.Resource.ClusterMetadata.EXPECT().GetCurrentClusterName().Return(cluster.TestCurrentClusterName).AnyTimes()
 	mockShard.Resource.ExecutionMgr.EXPECT().RegisterHistoryTaskReader(gomock.Any(), gomock.Any()).Return(nil).Times(1)
 
-	base := newQueueBase(
-		mockShard,
-		tasks.CategoryTimer,
-		nil,
-		s.mockScheduler,
-		s.mockRescheduler,
-		NewNoopPriorityAssigner(),
-		nil,
-		s.options,
-		s.rateLimiter,
-		NoopReaderCompletionFn,
-		s.logger,
-		s.metricsHandler,
-	)
+	base := newQueueBase(mockShard, tasks.CategoryTimer, nil, s.mockScheduler, s.mockRescheduler, NewNoopPriorityAssigner(), nil, s.options, s.rateLimiter, NoopReaderCompletionFn, s.logger, s.metricsHandler, NewNoopDLQ())
 	s.True(base.nonReadableScope.Range.Equals(NewRange(tasks.MinimumKey, tasks.MaximumKey)))
 
 	base.processNewRange()
@@ -453,20 +388,7 @@ func (s *queueBaseSuite) TestCheckPoint_WithPendingTasks_PerformRangeCompletion(
 	mockShard.Resource.ClusterMetadata.EXPECT().GetAllClusterInfo().Return(cluster.TestAllClusterInfo).AnyTimes()
 	mockShard.Resource.ExecutionMgr.EXPECT().RegisterHistoryTaskReader(gomock.Any(), gomock.Any()).Return(nil).Times(len(readerIDs))
 
-	base := newQueueBase(
-		mockShard,
-		tasks.CategoryTimer,
-		nil,
-		s.mockScheduler,
-		s.mockRescheduler,
-		NewNoopPriorityAssigner(),
-		nil,
-		s.options,
-		s.rateLimiter,
-		NoopReaderCompletionFn,
-		s.logger,
-		s.metricsHandler,
-	)
+	base := newQueueBase(mockShard, tasks.CategoryTimer, nil, s.mockScheduler, s.mockRescheduler, NewNoopPriorityAssigner(), nil, s.options, s.rateLimiter, NoopReaderCompletionFn, s.logger, s.metricsHandler, NewNoopDLQ())
 	base.checkpointTimer = time.NewTimer(s.options.CheckpointInterval())
 
 	s.True(scopeMinKey.CompareTo(base.exclusiveDeletionHighWatermark) == 0)
@@ -537,20 +459,7 @@ func (s *queueBaseSuite) TestCheckPoint_WithPendingTasks_SkipRangeCompletion() {
 	mockShard.Resource.ClusterMetadata.EXPECT().GetAllClusterInfo().Return(cluster.TestAllClusterInfo).AnyTimes()
 	mockShard.Resource.ExecutionMgr.EXPECT().RegisterHistoryTaskReader(gomock.Any(), gomock.Any()).Return(nil).Times(len(readerScopes))
 
-	base := newQueueBase(
-		mockShard,
-		tasks.CategoryTimer,
-		nil,
-		s.mockScheduler,
-		s.mockRescheduler,
-		NewNoopPriorityAssigner(),
-		nil,
-		s.options,
-		s.rateLimiter,
-		NoopReaderCompletionFn,
-		s.logger,
-		s.metricsHandler,
-	)
+	base := newQueueBase(mockShard, tasks.CategoryTimer, nil, s.mockScheduler, s.mockRescheduler, NewNoopPriorityAssigner(), nil, s.options, s.rateLimiter, NoopReaderCompletionFn, s.logger, s.metricsHandler, NewNoopDLQ())
 	base.checkpointTimer = time.NewTimer(s.options.CheckpointInterval())
 
 	s.True(scopeMinKey.CompareTo(base.exclusiveDeletionHighWatermark) == 0)
@@ -596,20 +505,7 @@ func (s *queueBaseSuite) TestCheckPoint_NoPendingTasks() {
 	mockShard.Resource.ClusterMetadata.EXPECT().GetCurrentClusterName().Return(cluster.TestCurrentClusterName).AnyTimes()
 	mockShard.Resource.ClusterMetadata.EXPECT().GetAllClusterInfo().Return(cluster.TestAllClusterInfo).AnyTimes()
 
-	base := newQueueBase(
-		mockShard,
-		tasks.CategoryTimer,
-		nil,
-		s.mockScheduler,
-		s.mockRescheduler,
-		NewNoopPriorityAssigner(),
-		nil,
-		s.options,
-		s.rateLimiter,
-		NoopReaderCompletionFn,
-		s.logger,
-		s.metricsHandler,
-	)
+	base := newQueueBase(mockShard, tasks.CategoryTimer, nil, s.mockScheduler, s.mockRescheduler, NewNoopPriorityAssigner(), nil, s.options, s.rateLimiter, NoopReaderCompletionFn, s.logger, s.metricsHandler, NewNoopDLQ())
 	base.checkpointTimer = time.NewTimer(s.options.CheckpointInterval())
 
 	s.True(exclusiveReaderHighWatermark.CompareTo(base.exclusiveDeletionHighWatermark) == 0)
@@ -685,20 +581,7 @@ func (s *queueBaseSuite) TestCheckPoint_MoveSlices() {
 	mockShard.Resource.ClusterMetadata.EXPECT().GetAllClusterInfo().Return(cluster.TestAllClusterInfo).AnyTimes()
 	mockShard.Resource.ExecutionMgr.EXPECT().RegisterHistoryTaskReader(gomock.Any(), gomock.Any()).Return(nil).Times(2)
 
-	base := newQueueBase(
-		mockShard,
-		tasks.CategoryTimer,
-		nil,
-		s.mockScheduler,
-		s.mockRescheduler,
-		NewNoopPriorityAssigner(),
-		nil,
-		s.options,
-		s.rateLimiter,
-		NoopReaderCompletionFn,
-		s.logger,
-		s.metricsHandler,
-	)
+	base := newQueueBase(mockShard, tasks.CategoryTimer, nil, s.mockScheduler, s.mockRescheduler, NewNoopPriorityAssigner(), nil, s.options, s.rateLimiter, NoopReaderCompletionFn, s.logger, s.metricsHandler, NewNoopDLQ())
 	base.checkpointTimer = time.NewTimer(s.options.CheckpointInterval())
 	s.True(scopes[0].Range.InclusiveMin.CompareTo(base.exclusiveDeletionHighWatermark) == 0)
 
@@ -756,20 +639,7 @@ func (s *queueBaseSuite) TestUpdateReaderProgress() {
 	mockShard.Resource.ClusterMetadata.EXPECT().GetAllClusterInfo().Return(cluster.TestAllClusterInfo).AnyTimes()
 	mockShard.Resource.ExecutionMgr.EXPECT().RegisterHistoryTaskReader(gomock.Any(), gomock.Any()).Return(nil).Times(2)
 
-	base := newQueueBase(
-		mockShard,
-		tasks.CategoryTransfer,
-		nil,
-		s.mockScheduler,
-		s.mockRescheduler,
-		NewNoopPriorityAssigner(),
-		nil,
-		s.options,
-		s.rateLimiter,
-		NoopReaderCompletionFn,
-		s.logger,
-		s.metricsHandler,
-	)
+	base := newQueueBase(mockShard, tasks.CategoryTransfer, nil, s.mockScheduler, s.mockRescheduler, NewNoopPriorityAssigner(), nil, s.options, s.rateLimiter, NoopReaderCompletionFn, s.logger, s.metricsHandler, NewNoopDLQ())
 
 	readerProgress := make(map[int64]tasks.Key)
 	mockShard.Resource.ExecutionMgr.EXPECT().UpdateHistoryTaskReaderProgress(gomock.Any(), gomock.Any()).Do(

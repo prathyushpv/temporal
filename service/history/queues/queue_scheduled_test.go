@@ -106,21 +106,10 @@ func (s *scheduledQueueSuite) SetupTest() {
 		metrics.NoopMetricsHandler,
 	)
 
-	s.scheduledQueue = NewScheduledQueue(
-		s.mockShard,
-		tasks.CategoryTimer,
-		scheduler,
-		rescheduler,
-		nil,
-		nil,
-		testQueueOptions,
-		NewReaderPriorityRateLimiter(
-			func() float64 { return 10 },
-			1,
-		),
-		log.NewTestLogger(),
-		metrics.NoopMetricsHandler,
-	)
+	s.scheduledQueue = NewScheduledQueue(s.mockShard, tasks.CategoryTimer, scheduler, rescheduler, nil, nil, testQueueOptions, NewReaderPriorityRateLimiter(
+		func() float64 { return 10 },
+		1,
+	), log.NewTestLogger(), metrics.NoopMetricsHandler, NewNoopDLQ())
 }
 
 func (s *scheduledQueueSuite) TearDownTest() {

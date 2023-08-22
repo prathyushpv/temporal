@@ -71,6 +71,7 @@ type (
 		MetricsHandler       metrics.Handler
 		Logger               log.SnTaggedLogger
 		SchedulerRateLimiter queues.SchedulerRateLimiter
+		DLQ                  queues.DLQ
 
 		ExecutorWrapper queues.ExecutorWrapper `optional:"true"`
 	}
@@ -90,8 +91,9 @@ type (
 )
 
 var QueueModule = fx.Options(
-	fx.Provide(QueueSchedulerRateLimiterProvider),
 	fx.Provide(
+		QueueSchedulerRateLimiterProvider,
+		queues.NewNoopDLQ,
 		fx.Annotated{
 			Group:  QueueFactoryFxGroup,
 			Target: NewTransferQueueFactory,

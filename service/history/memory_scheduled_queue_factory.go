@@ -50,6 +50,7 @@ type (
 		TimeSource        clock.TimeSource
 		MetricsHandler    metrics.Handler
 		Logger            log.SnTaggedLogger
+		DLQ               queues.DLQ
 
 		ExecutorWrapper queues.ExecutorWrapper `optional:"true"`
 	}
@@ -65,6 +66,7 @@ type (
 		logger            log.SnTaggedLogger
 
 		executorWrapper queues.ExecutorWrapper
+		dlq             queues.DLQ
 	}
 )
 
@@ -91,6 +93,7 @@ func NewMemoryScheduledQueueFactory(
 		metricsHandler:    metricsHandler,
 		logger:            logger,
 		executorWrapper:   params.ExecutorWrapper,
+		dlq:               params.DLQ,
 	}
 }
 
@@ -131,5 +134,6 @@ func (f *memoryScheduledQueueFactory) CreateQueue(
 		f.timeSource,
 		f.metricsHandler,
 		f.logger,
+		f.dlq,
 	)
 }

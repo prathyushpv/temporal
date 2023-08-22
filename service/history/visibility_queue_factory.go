@@ -146,5 +146,6 @@ func (f *visibilityQueueFactory) CreateQueue(
 		f.HostReaderRateLimiter,
 		logger,
 		metricsHandler,
+		f.DLQ,
 	)
 }

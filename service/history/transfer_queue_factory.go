@@ -197,5 +197,6 @@ func (f *transferQueueFactory) CreateQueue(
 		f.HostReaderRateLimiter,
 		logger,
 		metricsHandler,
+		f.DLQ,
 	)
 }
