@@ -79,6 +79,7 @@ var Module = fx.Options(
 	fx.Provide(VisibilityManagerProvider),
 	fx.Provide(ThrottledLoggerRpsFnProvider),
 	fx.Provide(PersistenceRateLimitingParamsProvider),
+	service.PersistenceLazyLoadedServiceResolverModule,
 	fx.Provide(ServiceResolverProvider),
 	fx.Provide(EventNotifierProvider),
 	fx.Provide(ArchivalClientProvider),
@@ -114,7 +115,9 @@ func ServiceProvider(
 	)
 }
 
-func ServiceResolverProvider(membershipMonitor membership.Monitor) (membership.ServiceResolver, error) {
+func ServiceResolverProvider(
+	membershipMonitor membership.Monitor,
+) (membership.ServiceResolver, error) {
 	return membershipMonitor.GetResolver(primitives.HistoryService)
 }
 
@@ -219,6 +222,7 @@ func ESProcessorConfigProvider(
 
 func PersistenceRateLimitingParamsProvider(
 	serviceConfig *configs.Config,
+	persistenceLazyLoadedServiceResolver service.PersistenceLazyLoadedServiceResolver,
 ) service.PersistenceRateLimitingParams {
 	return service.NewPersistenceRateLimitingParams(
 		serviceConfig.PersistenceMaxQPS,
@@ -228,6 +232,7 @@ func PersistenceRateLimitingParamsProvider(
 		serviceConfig.EnablePersistencePriorityRateLimiting,
 		serviceConfig.OperatorRPSRatio,
 		serviceConfig.PersistenceDynamicRateLimitingParams,
+		persistenceLazyLoadedServiceResolver,
 	)
 }
 
