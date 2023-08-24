@@ -84,6 +84,8 @@ var (
 	taskNotReadyReschedulePolicy               = common.CreateTaskNotReadyReschedulePolicy()
 	taskResourceExhuastedReschedulePolicy      = common.CreateTaskResourceExhaustedReschedulePolicy()
 	dependencyTaskNotCompletedReschedulePolicy = common.CreateDependencyTaskNotCompletedReschedulePolicy()
+
+	AddTaskToDLQErr = errors.New("failed to add task to DLQ")
 )
 
 const (
@@ -130,6 +132,7 @@ type (
 		resourceExhaustedCount int // does NOT include consts.ErrResourceExhaustedBusyWorkflow
 		taggedMetricsHandler   metrics.Handler
 		dlq                    DLQ
+		dlqReason              error
 	}
 )
 
@@ -235,6 +238,14 @@ func (e *executableImpl) Execute() (retErr error) {
 		// if retErr is not nil, HandleErr will take care of the inMemoryNoUserLatency calculation
 		// Not doing it here as for certain errors latency for the attempt should not be counted
 	}()
+	if e.dlqReason != nil {
+		if err := e.dlq.AddTask(ctx, e.Task); err != nil {
+			err = fmt.Errorf("%w: %v; dlq reason: %v", AddTaskToDLQErr, err, e.dlqReason)
+			e.logger.Error("Failed to add task to DLQ", tag.Error(err))
+			return err
+		}
+		return nil
+	}
 
 	metricsTags, isActive, err := e.executor.Execute(ctx, e)
 	e.taggedMetricsHandler = e.metricsHandler.WithTags(metricsTags...)
@@ -342,10 +353,7 @@ func (e *executableImpl) HandleErr(err error) (retErr error) {
 		// task will be marked as completed.
 		e.taggedMetricsHandler.Counter(metrics.TaskCorruptionCounter.GetMetricName()).Record(1)
 		e.logger.Error("DLQ task due to serialization error", tag.Error(err))
-		if err := e.dlq.AddTask(context.TODO(), e.Task); err != nil {
-			e.taggedMetricsHandler.Counter(metrics.DLQTaskAddFailureCounter.GetMetricName()).Record(1)
-			e.logger.Error("Failed to add corrupted task to DLQ", tag.Error(err))
-		}
+		e.dlqReason = err
 		return nil
 	}
 
