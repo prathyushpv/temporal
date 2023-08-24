@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"net/http"
 	_ "net/http/pprof" // DO NOT REMOVE THE LINE
+	"runtime"
 	"sync/atomic"
 
 	"go.temporal.io/server/common/config"
@@ -71,6 +72,7 @@ func (initializer *PProfInitializerImpl) Start() error {
 	if atomic.CompareAndSwapInt32(&pprofStatus, pprofNotInitialized, pprofInitialized) {
 		go func() {
 			initializer.Logger.Info("PProf listen on ", tag.Port(port))
+			runtime.SetBlockProfileRate(1) // Set the rate of goroutine block profiling to 1
 			err := http.ListenAndServe(fmt.Sprintf("localhost:%d", port), nil)
 			if err != nil {
 				initializer.Logger.Error("listen and serve err", tag.Error(err))
