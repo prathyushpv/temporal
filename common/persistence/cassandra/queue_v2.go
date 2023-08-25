@@ -68,13 +68,13 @@ func (q *queueV2) EnqueueMessage(ctx context.Context, queueID string, blob commo
 	if err != nil {
 		return err
 	}
-	return q.tryInsert(ctx, queueID, blob, err, maxMessageID)
+	return q.tryInsert(ctx, queueID, blob, maxMessageID)
 }
 
 func (q *queueV2) GetMessages(ctx context.Context, queueID string, minMessageID int64, maxCount int) ([]*persistence.QueueV2Message, error) {
 	iter := q.session.Query(templateGetMessagesQueryV2, queueID, 0, minMessageID, maxCount).WithContext(ctx).Iter()
 	if iter == nil {
-		return nil, fmt.Errorf("unable to get iterator for query")
+		return nil, errGetMaxMessageIDQueryFailed
 	}
 
 	var result []*persistence.QueueV2Message
@@ -124,7 +124,7 @@ func (q *queueV2) DeleteMessages(ctx context.Context, queueID string, minMessage
 	return nDeleted, nil
 }
 
-func (q *queueV2) tryInsert(ctx context.Context, queueID string, blob commonpb.DataBlob, err error, messageID int64) error {
+func (q *queueV2) tryInsert(ctx context.Context, queueID string, blob commonpb.DataBlob, messageID int64) error {
 	applied, err := q.session.Query(
 		templateEnqueueMessageQueryV2,
 		queueID,
