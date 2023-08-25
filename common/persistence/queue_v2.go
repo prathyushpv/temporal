@@ -22,27 +22,35 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package queues
+package persistence
 
 import (
 	"context"
+	"errors"
 
-	"go.temporal.io/server/service/history/tasks"
+	commonpb "go.temporal.io/api/common/v1"
 )
 
 type (
-	DLQ interface {
-		// AddTask adds a task to the DLQ
-		AddTask(ctx context.Context, task tasks.Task) error
+	QueueV2 interface {
+		CreateQueue(ctx context.Context, queueType QueueV2Type, queueID string, blob *commonpb.DataBlob) error
+		EnqueueMessage(ctx context.Context, queueType QueueV2Type, queueName string, blob *commonpb.DataBlob) error
+		GetMessages(ctx context.Context, queueType QueueV2Type, queueID string, lastMessageID int64, maxCount int) ([]*QueueV2Message, error)
 	}
-	noopDLQ struct{}
+	QueueV2Type    int
+	QueueV2Message struct {
+		ID             string
+		SequenceNumber int64
+		Data           []byte
+		Encoding       string
+	}
 )
 
-// NewNoopDLQ returns a DLQ that does nothing
-func NewNoopDLQ() DLQ {
-	return noopDLQ{}
-}
+const (
+	QueueV2TypeNormal QueueV2Type = iota
+	QueueV2TypeDLQ
+)
 
-func (n noopDLQ) AddTask(context.Context, tasks.Task) error {
-	return nil
-}
+var (
+	QueueAlreadyExistsError = errors.New("queue already exists")
+)
