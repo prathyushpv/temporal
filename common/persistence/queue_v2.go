@@ -33,9 +33,11 @@ import (
 type (
 	QueueV2 interface {
 		EnqueueMessage(ctx context.Context, queueID string, blob *commonpb.DataBlob) error
-		GetMessages(ctx context.Context, queueID string, lastMessageID int64, maxCount int) ([]*QueueV2Message, error)
-		// DeleteMessages deletes all messages inclusively between firstMessageID and lastMessageID
-		DeleteMessages(ctx context.Context, queueID string, firstMessageID int64, lastMessageID int) (int, error)
+		// GetMessages returns up to maxCount messages with ID greater than or equal to minMessageID. The first message
+		// in a queue has an id of zero.
+		GetMessages(ctx context.Context, queueID string, minMessageID int64, maxCount int) ([]*QueueV2Message, error)
+		// DeleteMessages deletes all messages inclusively between minMessageID and maxMessageID
+		DeleteMessages(ctx context.Context, queueID string, minMessageID int64, maxMessageID int) (int, error)
 	}
 	QueueV2Type    int
 	QueueV2Message struct {

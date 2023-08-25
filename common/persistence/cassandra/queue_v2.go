@@ -58,18 +58,19 @@ var (
 	messageConflictErr             = errors.New("message conflict likely due to concurrent writes")
 	deleteMessagesQueryFailedError = errors.New("delete messages query failed")
 	deleteMessagesIterFailedClose  = errors.New("delete messages iterator failed to close")
+	errGetMaxMessageIDQueryFailed  = errors.New("get max message ID query failed")
 )
 
 func (q *queueV2) EnqueueMessage(ctx context.Context, queueID string, blob *commonpb.DataBlob) error {
-	maxMessageID, err := q.getMaxMessageID(ctx, queueID)
+	maxMessageID, err := q.getNextMessageID(ctx, queueID)
 	if err != nil {
 		return err
 	}
-	return q.tryInsert(ctx, queueID, blob, err, maxMessageID+1)
+	return q.tryInsert(ctx, queueID, blob, err, maxMessageID)
 }
 
-func (q *queueV2) GetMessages(ctx context.Context, queueID string, lastMessageID int64, maxCount int) ([]*persistence.QueueV2Message, error) {
-	iter := q.session.Query(templateGetMessagesQueryV2, queueID, 0, lastMessageID, maxCount).WithContext(ctx).Iter()
+func (q *queueV2) GetMessages(ctx context.Context, queueID string, minMessageID int64, maxCount int) ([]*persistence.QueueV2Message, error) {
+	iter := q.session.Query(templateGetMessagesQueryV2, queueID, 0, minMessageID, maxCount).WithContext(ctx).Iter()
 	if iter == nil {
 		return nil, fmt.Errorf("unable to get iterator for query")
 	}
@@ -98,8 +99,8 @@ func newQueueV2(session gocql.Session, logger log.Logger) persistence.QueueV2 {
 	}
 }
 
-func (q *queueV2) DeleteMessages(ctx context.Context, queueID string, firstMessageID int64, lastMessageID int) (int, error) {
-	iter := q.session.Query(templateDeleteMessagesQueryV2, queueID, 0, firstMessageID, lastMessageID).WithContext(ctx).Iter()
+func (q *queueV2) DeleteMessages(ctx context.Context, queueID string, minMessageID int64, maxMessageID int) (int, error) {
+	iter := q.session.Query(templateDeleteMessagesQueryV2, queueID, 0, minMessageID, maxMessageID).WithContext(ctx).Iter()
 	if iter == nil {
 		return 0, deleteMessagesQueryFailedError
 	}
@@ -132,18 +133,17 @@ func (q *queueV2) tryInsert(ctx context.Context, queueID string, blob *commonpb.
 	return nil
 }
 
-func (q *queueV2) getMaxMessageID(ctx context.Context, queueID string) (int64, error) {
-	result := make(map[string]interface{})
-	err := q.session.Query(templateGetMaxMessageIDQueryV2, queueID, 0).WithContext(ctx).MapScan(result)
+func (q *queueV2) getNextMessageID(ctx context.Context, queueID string) (int64, error) {
+	// maxMessageID is a pointer to an int64 because Scan() will set it to nil if there are no rows for the MAX query.
+	var maxMessageID *int64
+	err := q.session.Query(templateGetMaxMessageIDQueryV2, queueID, 0).WithContext(ctx).Scan(&maxMessageID)
 	if err != nil {
-		if !gocql.IsNotFoundError(err) {
-			return 0, err
-		}
+		return 0, fmt.Errorf("%w: %v", errGetMaxMessageIDQueryFailed, err)
+	}
+	if maxMessageID == nil {
+		// There are no messages in the queue, so the next message ID is the first message ID, which is 0.
 		return 0, nil
 	}
-	messageID, ok := result["message_id"].(int64)
-	if !ok {
-		return 0, nil
-	}
-	return messageID, nil
+	// The next message ID is the max message ID + 1.
+	return *maxMessageID + 1, nil
 }
