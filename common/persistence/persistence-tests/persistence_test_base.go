@@ -104,6 +104,7 @@ type (
 		ReplicationReadLevel      int64
 		DefaultTestCluster        PersistenceTestCluster
 		Logger                    log.Logger
+		QueueV2                   persistence.QueueV2
 	}
 
 	// PersistenceTestCluster exposes management operations on a database
@@ -247,6 +248,10 @@ func (s *TestBase) Setup(clusterMetadataConfig *cluster.Config) {
 	queue, err := factory.NewNamespaceReplicationQueue()
 	s.fatalOnError("Create NamespaceReplicationQueue", err)
 	s.NamespaceReplicationQueue = queue
+
+	queueV2, err := factory.NewQueueV2()
+	s.fatalOnError("Create QueueV2", err)
+	s.QueueV2 = queueV2
 }
 
 func (s *TestBase) fatalOnError(msg string, err error) {

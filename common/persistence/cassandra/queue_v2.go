@@ -33,6 +33,7 @@ import (
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/persistence"
 	"go.temporal.io/server/common/persistence/nosql/nosqlplugin/cassandra/gocql"
+	"golang.org/x/exp/slices"
 )
 
 type (
@@ -46,26 +47,29 @@ type (
 )
 
 const (
-	templateEnqueueMessageQueryV2 = `INSERT INTO queue_messages (queue_id, queue_partition, message_id, message_payload, message_encoding, version) VALUES (?, ?, ?, ?, ?, ?) IF NOT EXISTS`
+	templateEnqueueMessageQueryV2 = `INSERT INTO queue_messages (queue_id, queue_partition, message_id, message_payload, message_encoding) VALUES (?, ?, ?, ?, ?) IF NOT EXISTS`
 	templateGetMessagesQueryV2    = `SELECT message_id, message_payload, message_encoding FROM queue_messages WHERE queue_id = ? AND queue_partition = ? AND message_id >= ? ORDER BY message_id ASC LIMIT ?`
+	templateDeleteMessagesQueryV2 = `DELETE FROM queue_messages WHERE queue_id = ? AND queue_partition = ? AND message_id >= ? AND message_id <= ?`
 
-	templateGetMaxMessageIDQueryV2 = `SELECT MAX(message_id) FROM queue_messages WHERE queue_type = ? AND queue_name = ? AND queue_partition = ?`
+	templateGetMaxMessageIDQueryV2 = `SELECT MAX(message_id) AS message_id FROM queue_messages WHERE queue_id = ? AND queue_partition = ?`
 )
 
 var (
-	messageConflictError = errors.New("message conflict likely due to concurrent writes")
+	messageConflictErr             = errors.New("message conflict likely due to concurrent writes")
+	deleteMessagesQueryFailedError = errors.New("delete messages query failed")
+	deleteMessagesIterFailedClose  = errors.New("delete messages iterator failed to close")
 )
 
-func (q *queueV2) EnqueueMessage(ctx context.Context, queueType persistence.QueueV2Type, queueName string, blob *commonpb.DataBlob) error {
-	maxMessageID, err := q.getMaxMessageID(ctx, queueType, queueName)
+func (q *queueV2) EnqueueMessage(ctx context.Context, queueID string, blob *commonpb.DataBlob) error {
+	maxMessageID, err := q.getMaxMessageID(ctx, queueID)
 	if err != nil {
 		return err
 	}
-	return q.tryInsert(ctx, queueType, queueName, blob, err, maxMessageID)
+	return q.tryInsert(ctx, queueID, blob, err, maxMessageID+1)
 }
 
-func (q *queueV2) GetMessages(ctx context.Context, queueType persistence.QueueV2Type, queueID string, lastMessageID int64, maxCount int) ([]*persistence.QueueV2Message, error) {
-	iter := q.session.Query(templateGetMessagesQueryV2, queueType, queueID, lastMessageID, maxCount).WithContext(ctx).Iter()
+func (q *queueV2) GetMessages(ctx context.Context, queueID string, lastMessageID int64, maxCount int) ([]*persistence.QueueV2Message, error) {
+	iter := q.session.Query(templateGetMessagesQueryV2, queueID, 0, lastMessageID, maxCount).WithContext(ctx).Iter()
 	if iter == nil {
 		return nil, fmt.Errorf("unable to get iterator for query")
 	}
@@ -77,7 +81,7 @@ func (q *queueV2) GetMessages(ctx context.Context, queueType persistence.QueueV2
 	for iter.Scan(&messageID, &messagePayload, &messageEncoding) {
 		result = append(result, &persistence.QueueV2Message{
 			ID:       messageID,
-			Data:     messagePayload,
+			Data:     slices.Clone(messagePayload),
 			Encoding: messageEncoding,
 		})
 	}
@@ -94,34 +98,52 @@ func newQueueV2(session gocql.Session, logger log.Logger) persistence.QueueV2 {
 	}
 }
 
-func (q *queueV2) tryInsert(ctx context.Context, queueType persistence.QueueV2Type, queueName string, blob *commonpb.DataBlob, err error, maxMessageID int64) error {
+func (q *queueV2) DeleteMessages(ctx context.Context, queueID string, firstMessageID int64, lastMessageID int) (int, error) {
+	iter := q.session.Query(templateDeleteMessagesQueryV2, queueID, 0, firstMessageID, lastMessageID).WithContext(ctx).Iter()
+	if iter == nil {
+		return 0, deleteMessagesQueryFailedError
+	}
+
+	nDeleted := 0
+	for iter.Scan() {
+		nDeleted++
+	}
+	if err := iter.Close(); err != nil {
+		return 0, fmt.Errorf("%w: %v", deleteMessagesIterFailedClose, err)
+	}
+	return nDeleted, nil
+}
+
+func (q *queueV2) tryInsert(ctx context.Context, queueID string, blob *commonpb.DataBlob, err error, messageID int64) error {
 	applied, err := q.session.Query(
 		templateEnqueueMessageQueryV2,
-		queueType,
-		queueName,
+		queueID,
 		0,
-		maxMessageID,
+		messageID,
 		blob.Data,
 		blob.EncodingType.String(),
-		0,
 	).WithContext(ctx).MapScanCAS(make(map[string]interface{}))
 	if err != nil {
 		return err
 	}
 	if !applied {
-		return fmt.Errorf("%w: %v", messageConflictError, maxMessageID)
+		return fmt.Errorf("%w: insert with message ID %v was not applied", messageConflictErr, messageID)
 	}
 	return nil
 }
 
-func (q *queueV2) getMaxMessageID(ctx context.Context, queueType persistence.QueueV2Type, queueName string) (int64, error) {
+func (q *queueV2) getMaxMessageID(ctx context.Context, queueID string) (int64, error) {
 	result := make(map[string]interface{})
-	err := q.session.Query(templateGetMaxMessageIDQueryV2, queueType, queueName, 0).WithContext(ctx).MapScan(result)
+	err := q.session.Query(templateGetMaxMessageIDQueryV2, queueID, 0).WithContext(ctx).MapScan(result)
 	if err != nil {
 		if !gocql.IsNotFoundError(err) {
 			return 0, err
 		}
 		return 0, nil
 	}
-	return result["message_id"].(int64) + 1, nil
+	messageID, ok := result["message_id"].(int64)
+	if !ok {
+		return 0, nil
+	}
+	return messageID, nil
 }

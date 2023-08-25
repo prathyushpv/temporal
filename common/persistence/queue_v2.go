@@ -26,15 +26,16 @@ package persistence
 
 import (
 	"context"
-	"errors"
 
 	commonpb "go.temporal.io/api/common/v1"
 )
 
 type (
 	QueueV2 interface {
-		EnqueueMessage(ctx context.Context, queueType QueueV2Type, queueName string, blob *commonpb.DataBlob) error
-		GetMessages(ctx context.Context, queueType QueueV2Type, queueID string, lastMessageID int64, maxCount int) ([]*QueueV2Message, error)
+		EnqueueMessage(ctx context.Context, queueID string, blob *commonpb.DataBlob) error
+		GetMessages(ctx context.Context, queueID string, lastMessageID int64, maxCount int) ([]*QueueV2Message, error)
+		// DeleteMessages deletes all messages inclusively between firstMessageID and lastMessageID
+		DeleteMessages(ctx context.Context, queueID string, firstMessageID int64, lastMessageID int) (int, error)
 	}
 	QueueV2Type    int
 	QueueV2Message struct {
@@ -42,13 +43,4 @@ type (
 		Data     []byte
 		Encoding string
 	}
-)
-
-const (
-	QueueV2TypeNormal QueueV2Type = iota
-	QueueV2TypeDLQ
-)
-
-var (
-	QueueAlreadyExistsError = errors.New("queue already exists")
 )

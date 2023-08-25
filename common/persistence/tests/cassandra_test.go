@@ -166,6 +166,13 @@ func TestCassandraQueuePersistence(t *testing.T) {
 	suite.Run(t, s)
 }
 
+func TestCassandraQueueV2Persistence(t *testing.T) {
+	testBase := persistencetests.NewTestBaseWithCassandra(&persistencetests.TestBaseOptions{})
+	testBase.Setup(nil)
+	t.Cleanup(testBase.TearDownWorkflowStore)
+	persistencetests.RunQueueV2TestSuite(t, &testBase)
+}
+
 func TestCassandraClusterMetadataPersistence(t *testing.T) {
 	s := new(persistencetests.ClusterMetadataManagerSuite)
 	s.TestBase = persistencetests.NewTestBaseWithCassandra(&persistencetests.TestBaseOptions{})

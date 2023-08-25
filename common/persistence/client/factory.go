@@ -56,6 +56,8 @@ type (
 		NewExecutionManager() (p.ExecutionManager, error)
 		// NewNamespaceReplicationQueue returns a new queue for namespace replication
 		NewNamespaceReplicationQueue() (p.NamespaceReplicationQueue, error)
+		// NewQueueV2 returns a new queue for namespace replication
+		NewQueueV2() (p.QueueV2, error)
 		// NewClusterMetadataManager returns a new manager for cluster specific metadata
 		NewClusterMetadataManager() (p.ClusterMetadataManager, error)
 	}
@@ -210,6 +212,10 @@ func (f *factoryImpl) NewNamespaceReplicationQueue() (p.NamespaceReplicationQueu
 	}
 	result = p.NewQueuePersistenceRetryableClient(result, retryPolicy, IsPersistenceTransientError)
 	return p.NewNamespaceReplicationQueue(result, f.serializer, f.clusterName, f.metricsHandler, f.logger)
+}
+
+func (f *factoryImpl) NewQueueV2() (p.QueueV2, error) {
+	return f.dataStoreFactory.NewQueueV2()
 }
 
 // Close closes this factory

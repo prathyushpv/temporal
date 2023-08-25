@@ -130,6 +130,10 @@ func (f *Factory) NewQueue(queueType p.QueueType) (p.Queue, error) {
 	return newQueue(conn, f.logger, queueType)
 }
 
+func (f *Factory) NewQueueV2() (p.QueueV2, error) {
+	panic("not implemented")
+}
+
 // Close closes the factory
 func (f *Factory) Close() {
 	f.mainDBConn.ForceClose()

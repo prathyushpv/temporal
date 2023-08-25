@@ -48,6 +48,7 @@ type (
 		ExecutionStore *FaultInjectionExecutionStore
 		Queue          *FaultInjectionQueue
 		ClusterMDStore *FaultInjectionClusterMetadataStore
+		QueueV2        persistence.QueueV2
 	}
 
 	FaultInjectionShardStore struct {
@@ -246,6 +247,17 @@ func (d *FaultInjectionDataStoreFactory) NewQueue(queueType persistence.QueueTyp
 		}
 	}
 	return d.Queue, nil
+}
+
+func (d *FaultInjectionDataStoreFactory) NewQueueV2() (persistence.QueueV2, error) {
+	if d.QueueV2 == nil {
+		q, err := d.baseFactory.NewQueueV2()
+		if err != nil {
+			return nil, err
+		}
+		d.QueueV2 = q
+	}
+	return d.QueueV2, nil
 }
 
 func (d *FaultInjectionDataStoreFactory) NewClusterMetadataStore() (persistence.ClusterMetadataStore, error) {
