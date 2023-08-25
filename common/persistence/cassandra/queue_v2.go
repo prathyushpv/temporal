@@ -46,9 +46,8 @@ type (
 )
 
 const (
-	templateCreateQueueQueryV2    = `INSERT INTO queues (queue_type, queue_name, metadata_payload, metadata_encoding, version) VALUES (?, ?, ?, ?, ?)`
-	templateEnqueueMessageQueryV2 = `INSERT INTO queue_messages (queue_type, queue_name, queue_partition, message_id, message_payload, message_encoding, version) VALUES (?, ?, ?, ?, ?, ?) IF NOT EXISTS`
-	templateGetMessagesQueryV2    = `SELECT message_id, message_payload, message_encoding FROM queue_messages WHERE queue_type = ? AND queue_name = ? AND queue_partition IN (?) AND message_id > ? ORDER BY message_id ASC LIMIT ?`
+	templateEnqueueMessageQueryV2 = `INSERT INTO queue_messages (queue_id, queue_partition, message_id, message_payload, message_encoding, version) VALUES (?, ?, ?, ?, ?, ?) IF NOT EXISTS`
+	templateGetMessagesQueryV2    = `SELECT message_id, message_payload, message_encoding FROM queue_messages WHERE queue_id = ? AND queue_partition = ? AND message_id >= ? ORDER BY message_id ASC LIMIT ?`
 
 	templateGetMaxMessageIDQueryV2 = `SELECT MAX(message_id) FROM queue_messages WHERE queue_type = ? AND queue_name = ? AND queue_partition = ?`
 )
@@ -56,17 +55,6 @@ const (
 var (
 	messageConflictError = errors.New("message conflict likely due to concurrent writes")
 )
-
-func (q *queueV2) CreateQueue(ctx context.Context, queueType persistence.QueueV2Type, queueName string, blob *commonpb.DataBlob) error {
-	return q.session.Query(
-		templateCreateQueueQueryV2,
-		queueType,
-		queueName,
-		blob.Data,
-		blob.EncodingType.String(),
-		0,
-	).WithContext(ctx).Exec()
-}
 
 func (q *queueV2) EnqueueMessage(ctx context.Context, queueType persistence.QueueV2Type, queueName string, blob *commonpb.DataBlob) error {
 	maxMessageID, err := q.getMaxMessageID(ctx, queueType, queueName)
@@ -77,8 +65,26 @@ func (q *queueV2) EnqueueMessage(ctx context.Context, queueType persistence.Queu
 }
 
 func (q *queueV2) GetMessages(ctx context.Context, queueType persistence.QueueV2Type, queueID string, lastMessageID int64, maxCount int) ([]*persistence.QueueV2Message, error) {
-	//TODO implement me
-	panic("implement me")
+	iter := q.session.Query(templateGetMessagesQueryV2, queueType, queueID, lastMessageID, maxCount).WithContext(ctx).Iter()
+	if iter == nil {
+		return nil, fmt.Errorf("unable to get iterator for query")
+	}
+
+	var result []*persistence.QueueV2Message
+	var messageID int64
+	var messagePayload []byte
+	var messageEncoding string
+	for iter.Scan(&messageID, &messagePayload, &messageEncoding) {
+		result = append(result, &persistence.QueueV2Message{
+			ID:       messageID,
+			Data:     messagePayload,
+			Encoding: messageEncoding,
+		})
+	}
+	if err := iter.Close(); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func newQueueV2(session gocql.Session, logger log.Logger) persistence.QueueV2 {

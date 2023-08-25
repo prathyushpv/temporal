@@ -33,16 +33,14 @@ import (
 
 type (
 	QueueV2 interface {
-		CreateQueue(ctx context.Context, queueType QueueV2Type, queueID string, blob *commonpb.DataBlob) error
 		EnqueueMessage(ctx context.Context, queueType QueueV2Type, queueName string, blob *commonpb.DataBlob) error
 		GetMessages(ctx context.Context, queueType QueueV2Type, queueID string, lastMessageID int64, maxCount int) ([]*QueueV2Message, error)
 	}
 	QueueV2Type    int
 	QueueV2Message struct {
-		ID             string
-		SequenceNumber int64
-		Data           []byte
-		Encoding       string
+		ID       int64
+		Data     []byte
+		Encoding string
 	}
 )
 
