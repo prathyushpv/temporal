@@ -167,6 +167,8 @@ func TestCassandraQueuePersistence(t *testing.T) {
 }
 
 func TestCassandraQueueV2Persistence(t *testing.T) {
+	t.Parallel()
+
 	testBase := persistencetests.NewTestBaseWithCassandra(&persistencetests.TestBaseOptions{})
 	testBase.Setup(nil)
 	t.Cleanup(testBase.TearDownWorkflowStore)

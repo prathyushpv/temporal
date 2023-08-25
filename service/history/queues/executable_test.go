@@ -408,18 +408,62 @@ func (s *executableSuite) TestTaskCancellation() {
 	s.False(executable.IsRetryableError(errors.New("some random error")))
 }
 
-func (s *executableSuite) newTestExecutable() Executable {
+func (s *executableSuite) TestDLQ() {
+	mockDLQ := NewMockDLQ(s.controller)
+
+	tags := []metrics.Tag{metrics.StringTag("test-key", "test-value")}
+	executorErr := &serialization.DeserializationError{}
+	s.mockExecutor.EXPECT().Execute(gomock.Any(), gomock.Any()).Return(tags, true, executorErr)
+	var task tasks.Task
+	executable := s.newTestExecutable(func(params *executableTestParams) {
+		params.DLQ = mockDLQ
+		task = params.Task
+	})
+	err := executable.Execute()
+	s.ErrorIs(err, executorErr)
+	err = executable.HandleErr(err)
+	s.NoError(err)
+
+	mockDLQ.EXPECT().AddTask(gomock.Any(), task).Return(errors.New("some error from DLQ"))
+	err = executable.Execute()
+	s.ErrorIs(err, AddTaskToDLQErr)
+	err = executable.HandleErr(err)
+	s.ErrorIs(err, AddTaskToDLQErr)
+
+	mockDLQ.EXPECT().AddTask(gomock.Any(), task).Return(nil)
+	err = executable.Execute()
+	s.NoError(err)
+	err = executable.HandleErr(err)
+	s.NoError(err)
+}
+
+type executableTestParams struct {
+	DLQ    DLQ
+	Task   tasks.Task
+	Logger log.Logger
+}
+
+func (s *executableSuite) newTestExecutable(opts ...func(params *executableTestParams)) Executable {
+	task := tasks.NewFakeTask(
+		definition.NewWorkflowKey(
+			tests.NamespaceID.String(),
+			tests.WorkflowID,
+			tests.RunID,
+		),
+		tasks.CategoryTransfer,
+		s.timeSource.Now(),
+	)
+	p := executableTestParams{
+		DLQ:    NewNoopDLQ(),
+		Task:   task,
+		Logger: log.NewTestLogger(),
+	}
+	for _, o := range opts {
+		o(&p)
+	}
 	return NewExecutable(
 		DefaultReaderId,
-		tasks.NewFakeTask(
-			definition.NewWorkflowKey(
-				tests.NamespaceID.String(),
-				tests.WorkflowID,
-				tests.RunID,
-			),
-			tasks.CategoryTransfer,
-			s.timeSource.Now(),
-		),
+		p.Task,
 		s.mockExecutor,
 		s.mockScheduler,
 		s.mockRescheduler,
@@ -427,8 +471,8 @@ func (s *executableSuite) newTestExecutable() Executable {
 		s.timeSource,
 		s.mockNamespaceRegistry,
 		s.mockClusterMetadata,
-		log.NewTestLogger(),
+		p.Logger,
 		metrics.NoopMetricsHandler,
-		NewNoopDLQ(),
+		p.DLQ,
 	)
 }
