@@ -30,6 +30,7 @@ import (
 	"fmt"
 
 	commonpb "go.temporal.io/api/common/v1"
+	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/persistence"
 	"go.temporal.io/server/common/persistence/nosql/nosqlplugin/cassandra/gocql"
@@ -59,9 +60,10 @@ var (
 	deleteMessagesQueryFailedError = errors.New("delete messages query failed")
 	deleteMessagesIterFailedClose  = errors.New("delete messages iterator failed to close")
 	errGetMaxMessageIDQueryFailed  = errors.New("get max message ID query failed")
+	invalidEncodingTypeErr         = errors.New("invalid encoding type for queue message")
 )
 
-func (q *queueV2) EnqueueMessage(ctx context.Context, queueID string, blob *commonpb.DataBlob) error {
+func (q *queueV2) EnqueueMessage(ctx context.Context, queueID string, blob commonpb.DataBlob) error {
 	maxMessageID, err := q.getNextMessageID(ctx, queueID)
 	if err != nil {
 		return err
@@ -80,10 +82,17 @@ func (q *queueV2) GetMessages(ctx context.Context, queueID string, minMessageID 
 	var messagePayload []byte
 	var messageEncoding string
 	for iter.Scan(&messageID, &messagePayload, &messageEncoding) {
+		encoding, ok := enums.EncodingType_value[messageEncoding]
+		if !ok {
+			return nil, fmt.Errorf("%w: %v", invalidEncodingTypeErr, messageEncoding)
+		}
+		encodingType := enums.EncodingType(encoding)
 		result = append(result, &persistence.QueueV2Message{
-			ID:       messageID,
-			Data:     slices.Clone(messagePayload),
-			Encoding: messageEncoding,
+			ID: messageID,
+			Blob: commonpb.DataBlob{
+				EncodingType: encodingType,
+				Data:         slices.Clone(messagePayload),
+			},
 		})
 	}
 	if err := iter.Close(); err != nil {
@@ -115,7 +124,7 @@ func (q *queueV2) DeleteMessages(ctx context.Context, queueID string, minMessage
 	return nDeleted, nil
 }
 
-func (q *queueV2) tryInsert(ctx context.Context, queueID string, blob *commonpb.DataBlob, err error, messageID int64) error {
+func (q *queueV2) tryInsert(ctx context.Context, queueID string, blob commonpb.DataBlob, err error, messageID int64) error {
 	applied, err := q.session.Query(
 		templateEnqueueMessageQueryV2,
 		queueID,

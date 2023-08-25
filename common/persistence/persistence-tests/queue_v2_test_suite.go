@@ -51,8 +51,9 @@ func RunQueueV2TestSuite(t *testing.T, testBase *TestBase) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(messages))
 
-	err = queue.EnqueueMessage(ctx, testQueue, &commonpb.DataBlob{
-		EncodingType: enums.ENCODING_TYPE_PROTO3, // not actually proto3, but doesn't matter for this test
+	encodingType := enums.ENCODING_TYPE_JSON
+	err = queue.EnqueueMessage(ctx, testQueue, commonpb.DataBlob{
+		EncodingType: encodingType, // not actually proto3, but doesn't matter for this test
 		Data:         []byte("message1"),
 	})
 	require.NoError(t, err)
@@ -61,11 +62,11 @@ func RunQueueV2TestSuite(t *testing.T, testBase *TestBase) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(messages))
 	assert.Equal(t, int64(0), messages[0].ID)
-	assert.Equal(t, []byte("message1"), messages[0].Data)
-	assert.Equal(t, enums.ENCODING_TYPE_PROTO3.String(), messages[0].Encoding)
+	assert.Equal(t, []byte("message1"), messages[0].Blob)
+	assert.Equal(t, encodingType, messages[0].Blob.EncodingType)
 
-	err = queue.EnqueueMessage(ctx, testQueue, &commonpb.DataBlob{
-		EncodingType: enums.ENCODING_TYPE_PROTO3, // not actually proto3, but doesn't matter for this test
+	err = queue.EnqueueMessage(ctx, testQueue, commonpb.DataBlob{
+		EncodingType: encodingType, // not actually JSON, but doesn't matter for this test
 		Data:         []byte("message2"),
 	})
 	require.NoError(t, err)
@@ -74,16 +75,16 @@ func RunQueueV2TestSuite(t *testing.T, testBase *TestBase) {
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(messages))
 	assert.Equal(t, int64(0), messages[0].ID)
-	assert.Equal(t, []byte("message1"), messages[0].Data)
-	assert.Equal(t, enums.ENCODING_TYPE_PROTO3.String(), messages[0].Encoding)
+	assert.Equal(t, []byte("message1"), messages[0].Blob.Data)
+	assert.Equal(t, encodingType, messages[0].Blob.EncodingType)
 	assert.Equal(t, int64(1), messages[1].ID)
-	assert.Equal(t, []byte("message2"), messages[1].Data)
-	assert.Equal(t, enums.ENCODING_TYPE_PROTO3.String(), messages[1].Encoding)
+	assert.Equal(t, []byte("message2"), messages[1].Blob.Data)
+	assert.Equal(t, encodingType, messages[1].Blob.EncodingType)
 
 	messages, err = queue.GetMessages(ctx, testQueue, 1, 1)
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(messages))
 	assert.Equal(t, int64(1), messages[0].ID)
-	assert.Equal(t, []byte("message2"), messages[0].Data)
-	assert.Equal(t, enums.ENCODING_TYPE_PROTO3.String(), messages[0].Encoding)
+	assert.Equal(t, []byte("message2"), messages[0].Blob.Data)
+	assert.Equal(t, encodingType, messages[0].Blob.EncodingType)
 }

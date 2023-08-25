@@ -32,7 +32,7 @@ import (
 
 type (
 	QueueV2 interface {
-		EnqueueMessage(ctx context.Context, queueID string, blob *commonpb.DataBlob) error
+		EnqueueMessage(ctx context.Context, queueID string, blob commonpb.DataBlob) error
 		// GetMessages returns up to maxCount messages with ID greater than or equal to minMessageID. The first message
 		// in a queue has an id of zero.
 		GetMessages(ctx context.Context, queueID string, minMessageID int64, maxCount int) ([]*QueueV2Message, error)
@@ -41,8 +41,7 @@ type (
 	}
 	QueueV2Type    int
 	QueueV2Message struct {
-		ID       int64
-		Data     []byte
-		Encoding string
+		ID   int64
+		Blob commonpb.DataBlob
 	}
 )
