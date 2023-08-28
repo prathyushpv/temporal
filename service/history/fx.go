@@ -222,7 +222,7 @@ func ESProcessorConfigProvider(
 
 func PersistenceRateLimitingParamsProvider(
 	serviceConfig *configs.Config,
-	persistenceLazyLoadedServiceResolver service.PersistenceLazyLoadedServiceResolver,
+	persistenceLazyLoadedServiceResolver *service.PersistenceLazyLoadedServiceResolver,
 ) service.PersistenceRateLimitingParams {
 	return service.NewPersistenceRateLimitingParams(
 		serviceConfig.PersistenceMaxQPS,

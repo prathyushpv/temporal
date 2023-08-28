@@ -73,7 +73,7 @@ func ThrottledLoggerRpsFnProvider(serviceConfig *Config) resource.ThrottledLogge
 
 func PersistenceRateLimitingParamsProvider(
 	serviceConfig *Config,
-	persistenceLazyLoadedServiceResolver service.PersistenceLazyLoadedServiceResolver,
+	persistenceLazyLoadedServiceResolver *service.PersistenceLazyLoadedServiceResolver,
 ) service.PersistenceRateLimitingParams {
 	return service.NewPersistenceRateLimitingParams(
 		serviceConfig.PersistenceMaxQPS,
